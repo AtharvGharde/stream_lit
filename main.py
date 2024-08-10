@@ -1,38 +1,42 @@
 import streamlit as st
 import pandas as pd
-import streamlit_authenticator as stauth
 from datetime import datetime
 
 # Initialize Data
 barbers = []
 appointments = []
+users = {"barber1": "password123", "barber2": "password456"}
+
+# User Authentication Function
+def authenticate_user(username, password):
+    if username in users and users[username] == password:
+        return True
+    return False
 
 # Function to simulate payment processing
 def process_payment(user, amount):
     st.write(f"Payment of ${amount} processed for {user}.")
 
-# User Authentication
-def authenticate_user():
-    users = {'barber1': 'password123', 'barber2': 'password456'}
-    usernames = list(users.keys())
-    passwords = list(users.values())
-    
-    hashed_passwords = stauth.Hasher(passwords).generate()
-
-    authenticator = stauth.Authenticate(usernames, usernames, hashed_passwords, 'app_home', 'random_key')
-    name, authentication_status, username = authenticator.login('Login', 'main')
-
-    return name, authentication_status, username, authenticator
-
 # Main App
 def main():
-    st.title("Barber Booking Service")
+    st.title("Barbur.com - Uber for Barbers")
 
-    # Authenticate user
-    name, authentication_status, username, authenticator = authenticate_user()
+    # Simple Login Form
+    st.sidebar.title("Login")
+    username = st.sidebar.text_input("Username")
+    password = st.sidebar.text_input("Password", type="password")
+    login_button = st.sidebar.button("Login")
+    
+    if login_button:
+        if authenticate_user(username, password):
+            st.sidebar.success(f"Welcome, {username}")
+            st.session_state['authenticated'] = True
+            st.session_state['username'] = username
+        else:
+            st.sidebar.error("Invalid username or password")
 
-    if authentication_status:
-        st.sidebar.title(f"Welcome, {name}")
+    if 'authenticated' in st.session_state and st.session_state['authenticated']:
+        username = st.session_state['username']
 
         # Option for Barbers to register
         if st.sidebar.button("Register as a Barber"):
@@ -77,20 +81,20 @@ def main():
                 if confirm:
                     appointment = {
                         'barber': selected_barber,
-                        'user': name,
+                        'user': username,
                         'date': appointment_date,
                         'time': appointment_time,
                         'amount': barber['pricing']
                     }
                     appointments.append(appointment)
                     st.success(f"Appointment booked with {selected_barber} on {appointment_date} at {appointment_time}")
-                    process_payment(name, barber['pricing'])
+                    process_payment(username, barber['pricing'])
 
         # Option for Barbers to view appointments
         if st.sidebar.button("View Appointments"):
             st.subheader("My Appointments")
             for appointment in appointments:
-                if appointment['barber'] == name:
+                if appointment['barber'] == username:
                     st.write(f"User: {appointment['user']}")
                     st.write(f"Date: {appointment['date']}")
                     st.write(f"Time: {appointment['time']}")
@@ -111,12 +115,11 @@ def main():
 
         # Logout option
         if st.sidebar.button("Logout"):
-            authenticator.logout('Logout', 'sidebar')
+            st.session_state['authenticated'] = False
+            st.session_state['username'] = ""
             st.success("Logged out successfully.")
-    elif authentication_status == False:
-        st.error("Username/password is incorrect")
-    elif authentication_status == None:
-        st.warning("Please enter your username and password")
+    else:
+        st.warning("Please log in to access the app features.")
 
 if __name__ == '__main__':
     main()
