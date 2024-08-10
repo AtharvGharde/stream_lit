@@ -5,7 +5,12 @@ from datetime import datetime
 # Initialize Data
 barbers = []
 appointments = []
-users = {"barber1": "password123", "barber2": "password456"}
+# Users dictionary with a hardcoded developer profile
+users = {
+    "barber1": "password123", 
+    "barber2": "password456",
+    "developer": "devpassword"  # Hardcoded developer profile
+}
 
 # User Authentication Function
 def authenticate_user(username, password):
