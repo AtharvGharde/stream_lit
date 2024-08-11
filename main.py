@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from sklearn.linear_model import LinearRegression
+import numpy as np
 
 # Initialize session state
 if "user_logged_in" not in st.session_state:
@@ -57,23 +58,32 @@ if choice == "Home":
 elif choice == "Budget Calculator" and st.session_state.user_logged_in:
     st.title("Budget Calculator")
 
-    st.session_state.budget_data['income'] = st.number_input("Enter your monthly income:", min_value=0)
+    income = st.number_input("Enter your monthly income:", min_value=0)
     categories = ["Groceries", "Medicine", "Entertainment", "Rent", "Utilities", "Loans", "EMIs", "Investments", "Bills"]
 
+    expenses = {}
     for category in categories:
-        st.session_state.budget_data['expenses'][category] = st.number_input(f"{category}:", min_value=0)
+        expenses[category] = st.number_input(f"{category}:", min_value=0)
 
     if st.button("Calculate Budget"):
-        total_expenses = sum(st.session_state.budget_data['expenses'].values())
-        st.session_state.budget_data['remaining_balance'] = st.session_state.budget_data['income'] - total_expenses
-        st.success(f"Remaining Balance: {st.session_state.budget_data['remaining_balance']}")
+        total_expenses = sum(expenses.values())
+        remaining_balance = income - total_expenses
+        st.session_state.budget_data = {
+            "income": income,
+            "expenses": expenses,
+            "investment": remaining_balance,
+            "remaining_balance": remaining_balance,
+            "data": st.session_state.budget_data["data"]
+        }
+        
+        st.success(f"Remaining Balance: {remaining_balance}")
         
         # Store data for ML model
         st.session_state.budget_data['data'].append({
-            "income": st.session_state.budget_data['income'],
+            "income": income,
             "expenses": total_expenses,
-            "investment": st.session_state.budget_data['remaining_balance'],
-            "savings": st.session_state.budget_data['remaining_balance'] * 0.2  # Example savings (adjust logic as needed)
+            "investment": remaining_balance,
+            "savings": remaining_balance * 0.2  # Example savings
         })
 
 # Investment Suggestions
@@ -86,7 +96,7 @@ elif choice == "Investment Suggestions" and st.session_state.user_logged_in:
             prediction = predict_savings(model, st.session_state.budget_data['income'], 
                                          sum(st.session_state.budget_data['expenses'].values()), 
                                          st.session_state.budget_data['remaining_balance'])
-            st.write(f"Suggested Investment: {prediction}")
+            st.write(f"Suggested Investment: ${prediction:.2f}")
         else:
             st.warning("Not enough data to provide suggestions.")
     else:
@@ -96,17 +106,24 @@ elif choice == "Investment Suggestions" and st.session_state.user_logged_in:
 elif choice == "Expense History" and st.session_state.user_logged_in:
     st.title("Expense History")
 
-    st.write("Your previous expenses:")
-    st.write(st.session_state.budget_data['expenses'])
+    if st.session_state.budget_data['expenses']:
+        st.write("Your previous expenses:")
+        st.write(st.session_state.budget_data['expenses'])
+    else:
+        st.write("No expense history available.")
 
 # Alerts
 elif choice == "Alerts" and st.session_state.user_logged_in:
     st.title("Upcoming Bill Alerts")
 
-    st.write("You have upcoming bills for the following categories:")
-    for category, amount in st.session_state.budget_data['expenses'].items():
-        if amount > 0:
-            st.write(f"{category}: ${amount}")
+    upcoming_bills = [category for category, amount in st.session_state.budget_data['expenses'].items() if amount > 0]
+
+    if upcoming_bills:
+        st.write("You have upcoming bills for the following categories:")
+        for category in upcoming_bills:
+            st.write(f"{category}: ${st.session_state.budget_data['expenses'][category]:.2f}")
+    else:
+        st.write("No upcoming bills.")
 
 # If not logged in, show login prompt on other pages
 if not st.session_state.user_logged_in and choice != "Home":
