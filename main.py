@@ -1,18 +1,19 @@
 import streamlit as st
 import pandas as pd
-from sklearn.linear_model import LinearRegression
 import numpy as np
+from sklearn.linear_model import LinearRegression
+import matplotlib.pyplot as plt
 
 # Initialize session state
-if "user_logged_in" not in st.session_state:
+if 'user_logged_in' not in st.session_state:
     st.session_state.user_logged_in = False
-if "budget_data" not in st.session_state:
+if 'budget_data' not in st.session_state:
     st.session_state.budget_data = {
-        "income": 0,
-        "expenses": {},
-        "investment": 0,
-        "remaining_balance": 0,
-        "data": []
+        'income': 0,
+        'expenses': {},
+        'investment': 0,
+        'remaining_balance': 0,
+        'data': []
     }
 
 # Hardcoded login credentials
@@ -26,8 +27,8 @@ def login(username, password):
 def train_model(data):
     if len(data) > 0:
         df = pd.DataFrame(data)
-        X = df[["income", "expenses", "investment"]]
-        y = df["savings"]
+        X = df[['income', 'expenses', 'investment']]
+        y = df['savings']
         model = LinearRegression().fit(X, y)
         return model
     return None
@@ -69,22 +70,33 @@ elif choice == "Budget Calculator" and st.session_state.user_logged_in:
         total_expenses = sum(expenses.values())
         remaining_balance = income - total_expenses
         st.session_state.budget_data = {
-            "income": income,
-            "expenses": expenses,
-            "investment": remaining_balance,
-            "remaining_balance": remaining_balance,
-            "data": st.session_state.budget_data["data"]
+            'income': income,
+            'expenses': expenses,
+            'investment': remaining_balance,
+            'remaining_balance': remaining_balance,
+            'data': st.session_state.budget_data['data']
         }
-        
+
         st.success(f"Remaining Balance: {remaining_balance}")
         
         # Store data for ML model
         st.session_state.budget_data['data'].append({
-            "income": income,
-            "expenses": total_expenses,
-            "investment": remaining_balance,
-            "savings": remaining_balance * 0.2  # Example savings
+            'income': income,
+            'expenses': total_expenses,
+            'investment': remaining_balance,
+            'savings': remaining_balance * 0.2  # Example savings
         })
+
+        # Show charts
+        st.write("### Expenses Breakdown")
+        fig, ax = plt.subplots()
+        ax.pie(expenses.values(), labels=expenses.keys(), autopct='%1.1f%%')
+        st.pyplot(fig)
+
+        st.write("### Income vs Expenses")
+        fig, ax = plt.subplots()
+        ax.bar(["Income", "Total Expenses"], [income, total_expenses])
+        st.pyplot(fig)
 
 # Investment Suggestions
 elif choice == "Investment Suggestions" and st.session_state.user_logged_in:
