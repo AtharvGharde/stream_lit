@@ -1,148 +1,90 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 
-# Try to import scikit-learn and handle potential import errors
-try:
-    from sklearn.linear_model import LinearRegression
-except ModuleNotFoundError:
-    st.error("Error: scikit-learn is not installed. Please install it using `pip install scikit-learn`.")
-    st.stop()
+# Initialize session state for storing data
+if 'data' not in st.session_state:
+    st.session_state['data'] = []
 
-# Initialize session state
-if 'user_logged_in' not in st.session_state:
-    st.session_state.user_logged_in = False
-if 'budget_data' not in st.session_state:
-    st.session_state.budget_data = {
-        'income': 0,
-        'expenses': {},
-        'investment': 0,
-        'remaining_balance': 0,
-        'data': []
-    }
+# Input fields for budget categories
+st.title("Budget Management App")
 
-# Hardcoded login credentials
-def login(username, password):
-    if username == "developer" and password == "password123":
-        st.session_state.user_logged_in = True
-        return True
-    return False
+st.header("Income")
+wages = st.number_input("Wages", min_value=0, value=0)
+monthly_wages = st.number_input("Monthly Wages", min_value=0, value=0)
 
-# Machine Learning Model
-def train_model(data):
-    if len(data) > 0:
-        df = pd.DataFrame(data)
-        X = df[['income', 'expenses', 'investment']]
-        y = df['savings']
-        model = LinearRegression().fit(X, y)
-        return model
-    return None
+st.header("Expenses")
+groceries = st.number_input("Groceries", min_value=0, value=0)
+medicine = st.number_input("Medicine", min_value=0, value=0)
+entertainment = st.number_input("Entertainment", min_value=0, value=0)
+rent = st.number_input("Rent", min_value=0, value=0)
+utilities = st.number_input("Utilities", min_value=0, value=0)
+loans = st.number_input("Loans", min_value=0, value=0)
+emis = st.number_input("EMIs", min_value=0, value=0)
+investments = st.number_input("Investments", min_value=0, value=0)
+bills = st.number_input("Bills", min_value=0, value=0)
 
-def predict_savings(model, income, expenses, investment):
-    if model:
-        return model.predict([[income, expenses, investment]])[0]
-    return 0
+# Calculate totals
+total_income = wages + monthly_wages
+total_expenses = groceries + medicine + entertainment + rent + utilities + loans + emis + bills
+remaining_balance = total_income - total_expenses
 
-# Sidebar for Navigation
-st.sidebar.title("Navigation")
-pages = ["Home", "Budget Calculator", "Investment Suggestions", "Expense History", "Alerts"]
-choice = st.sidebar.radio("Go to", pages)
+# Simple interest calculation for loan
+interest_rate = st.number_input("Interest Rate (%)", min_value=0.0, value=5.0)
+interest_lost = loans * (interest_rate / 100)
 
-# Home Page
-if choice == "Home":
-    st.title("Welcome to AI Budget App")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-    
-    if st.button("Log in"):
-        if login(username, password):
-            st.success("You are now logged in!")
-        else:
-            st.error("Incorrect username or password.")
+# Returns on investment (simple estimation)
+investment_return_rate = st.number_input("Investment Return Rate (%)", min_value=0.0, value=7.0)
+investment_return = investments * (investment_return_rate / 100)
 
-# Budget Calculator
-elif choice == "Budget Calculator" and st.session_state.user_logged_in:
-    st.title("Budget Calculator")
+# Store data in session state
+st.session_state['data'].append({
+    "Wages": wages,
+    "Monthly Wages": monthly_wages,
+    "Total Income": total_income,
+    "Groceries": groceries,
+    "Medicine": medicine,
+    "Entertainment": entertainment,
+    "Rent": rent,
+    "Utilities": utilities,
+    "Loans": loans,
+    "EMIs": emis,
+    "Bills": bills,
+    "Total Expenses": total_expenses,
+    "Remaining Balance": remaining_balance,
+    "Interest Lost": interest_lost,
+    "Investment Return": investment_return
+})
 
-    income = st.number_input("Enter your monthly income:", min_value=0)
-    categories = ["Groceries", "Medicine", "Entertainment", "Rent", "Utilities", "Loans", "EMIs", "Investments", "Bills"]
+# Display results
+st.subheader("Summary")
+st.write(f"**Total Income:** ${total_income}")
+st.write(f"**Total Expenses:** ${total_expenses}")
+st.write(f"**Remaining Balance:** ${remaining_balance}")
+st.write(f"**Interest Lost on Loans:** ${interest_lost}")
+st.write(f"**Returns on Investment:** ${investment_return}")
 
-    expenses = {}
-    for category in categories:
-        expenses[category] = st.number_input(f"{category}:", min_value=0)
+# Visualization
+st.subheader("Visualization")
+if st.button("Generate Charts"):
+    df = pd.DataFrame(st.session_state['data'])
 
-    if st.button("Calculate Budget"):
-        total_expenses = sum(expenses.values())
-        remaining_balance = income - total_expenses
-        st.session_state.budget_data = {
-            'income': income,
-            'expenses': expenses,
-            'investment': remaining_balance,
-            'remaining_balance': remaining_balance,
-            'data': st.session_state.budget_data['data']
-        }
+    # Pie chart for expenses
+    st.write("**Expenses Distribution**")
+    fig1, ax1 = plt.subplots()
+    ax1.pie([groceries, medicine, entertainment, rent, utilities, loans, emis, bills], 
+            labels=["Groceries", "Medicine", "Entertainment", "Rent", "Utilities", "Loans", "EMIs", "Bills"],
+            autopct='%1.1f%%', startangle=90)
+    ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+    st.pyplot(fig1)
 
-        st.success(f"Remaining Balance: {remaining_balance}")
-        
-        # Store data for ML model
-        st.session_state.budget_data['data'].append({
-            'income': income,
-            'expenses': total_expenses,
-            'investment': remaining_balance,
-            'savings': remaining_balance * 0.2  # Example savings
-        })
+    # Bar chart for income vs expenses
+    st.write("**Income vs Expenses**")
+    fig2, ax2 = plt.subplots()
+    ax2.bar(["Total Income", "Total Expenses", "Remaining Balance"], 
+            [total_income, total_expenses, remaining_balance], color=['green', 'red', 'blue'])
+    st.pyplot(fig2)
 
-        # Show charts
-        st.write("### Expenses Breakdown")
-        fig, ax = plt.subplots()
-        ax.pie(expenses.values(), labels=expenses.keys(), autopct='%1.1f%%')
-        st.pyplot(fig)
-
-        st.write("### Income vs Expenses")
-        fig, ax = plt.subplots()
-        ax.bar(["Income", "Total Expenses"], [income, total_expenses])
-        st.pyplot(fig)
-
-# Investment Suggestions
-elif choice == "Investment Suggestions" and st.session_state.user_logged_in:
-    st.title("Investment Suggestions")
-
-    if st.session_state.budget_data['remaining_balance'] > 0:
-        model = train_model(st.session_state.budget_data['data'])
-        if model:
-            prediction = predict_savings(model, st.session_state.budget_data['income'], 
-                                         sum(st.session_state.budget_data['expenses'].values()), 
-                                         st.session_state.budget_data['remaining_balance'])
-            st.write(f"Suggested Investment: ${prediction:.2f}")
-        else:
-            st.warning("Not enough data to provide suggestions.")
-    else:
-        st.error("No remaining balance to invest.")
-
-# Expense History
-elif choice == "Expense History" and st.session_state.user_logged_in:
-    st.title("Expense History")
-
-    if st.session_state.budget_data['expenses']:
-        st.write("Your previous expenses:")
-        st.write(st.session_state.budget_data['expenses'])
-    else:
-        st.write("No expense history available.")
-
-# Alerts
-elif choice == "Alerts" and st.session_state.user_logged_in:
-    st.title("Upcoming Bill Alerts")
-
-    upcoming_bills = [category for category, amount in st.session_state.budget_data['expenses'].items() if amount > 0]
-
-    if upcoming_bills:
-        st.write("You have upcoming bills for the following categories:")
-        for category in upcoming_bills:
-            st.write(f"{category}: ${st.session_state.budget_data['expenses'][category]:.2f}")
-    else:
-        st.write("No upcoming bills.")
-
-# If not logged in, show login prompt on other pages
-if not st.session_state.user_logged_in and choice != "Home":
-    st.warning("Please log in to access this page.")
+# Machine Learning - Placeholder for future implementation
+st.subheader("Future Enhancement: Machine Learning")
+st.write("Machine learning algorithms will be implemented to provide personalized investment and budgeting advice based on your data.")
