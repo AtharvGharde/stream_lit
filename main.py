@@ -1,130 +1,106 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from sklearn.linear_model import LinearRegression
 
-# Initialize Data
-barbers = []
-appointments = []
-# Users dictionary with a hardcoded developer profile
-users = {
-    "barber1": "password123", 
-    "barber2": "password456",
-    "developer": "devpassword"  # Hardcoded developer profile
-}
+# Initialize session state
+if "user_logged_in" not in st.session_state:
+    st.session_state.user_logged_in = False
+if "budget_data" not in st.session_state:
+    st.session_state.budget_data = {
+        "income": 0,
+        "expenses": {},
+        "investment": {},
+        "remaining_balance": 0,
+        "data": []
+    }
 
-# User Authentication Function
-def authenticate_user(username, password):
-    if username in users and users[username] == password:
+# Hardcoded login credentials
+def login(username, password):
+    if username == "developer" and password == "password123":
+        st.session_state.user_logged_in = True
         return True
     return False
 
-# Function to simulate payment processing
-def process_payment(user, amount):
-    st.write(f"Payment of ${amount} processed for {user}.")
+# Machine Learning Model
+def train_model(data):
+    df = pd.DataFrame(data)
+    X = df[["income", "expenses", "investment"]]
+    y = df["savings"]
+    model = LinearRegression().fit(X, y)
+    return model
 
-# Main App
-def main():
-    st.title("Barbur.com - Uber for Barbers")
+def predict_savings(model, income, expenses, investment):
+    return model.predict([[income, expenses, investment]])[0]
 
-    # Simple Login Form
-    st.sidebar.title("Login")
-    username = st.sidebar.text_input("Username")
-    password = st.sidebar.text_input("Password", type="password")
-    login_button = st.sidebar.button("Login")
+# Sidebar for Navigation
+st.sidebar.title("Navigation")
+pages = ["Home", "Budget Calculator", "Investment Suggestions", "Expense History", "Alerts"]
+choice = st.sidebar.radio("Go to", pages)
+
+# Home Page
+if choice == "Home":
+    st.title("Welcome to AI Budget App")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
     
-    if login_button:
-        if authenticate_user(username, password):
-            st.sidebar.success(f"Welcome, {username}")
-            st.session_state['authenticated'] = True
-            st.session_state['username'] = username
+    if st.button("Log in"):
+        if login(username, password):
+            st.success("You are now logged in!")
         else:
-            st.sidebar.error("Invalid username or password")
+            st.error("Incorrect username or password.")
 
-    if 'authenticated' in st.session_state and st.session_state['authenticated']:
-        username = st.session_state['username']
+# Budget Calculator
+elif choice == "Budget Calculator" and st.session_state.user_logged_in:
+    st.title("Budget Calculator")
 
-        # Option for Barbers to register
-        if st.sidebar.button("Register as a Barber"):
-            st.subheader("Register as a Barber")
-            with st.form("barber_registration"):
-                barber_name = st.text_input("Full Name")
-                experience = st.number_input("Years of Experience", 1, 50)
-                services = st.text_area("Services Offered")
-                pricing = st.number_input("Base Price ($)", 10, 500)
-                availability = st.text_input("Availability (e.g., Mon-Fri, 9am-5pm)")
-                submitted = st.form_submit_button("Register")
-                if submitted:
-                    barber = {
-                        'name': barber_name,
-                        'experience': experience,
-                        'services': services,
-                        'pricing': pricing,
-                        'availability': availability,
-                        'ratings': [],
-                        'profile_id': len(barbers) + 1
-                    }
-                    barbers.append(barber)
-                    st.success("Barber registered successfully!")
+    st.session_state.budget_data['income'] = st.number_input("Enter your monthly income:", min_value=0)
+    categories = ["Groceries", "Medicine", "Entertainment", "Rent", "Utilities", "Loans", "EMIs", "Investments", "Bills"]
+
+    for category in categories:
+        st.session_state.budget_data['expenses'][category] = st.number_input(f"{category}:", min_value=0)
+
+    if st.button("Calculate Budget"):
+        total_expenses = sum(st.session_state.budget_data['expenses'].values())
+        st.session_state.budget_data['remaining_balance'] = st.session_state.budget_data['income'] - total_expenses
+        st.success(f"Remaining Balance: {st.session_state.budget_data['remaining_balance']}")
         
-        # Option for Users to book appointments
-        if st.sidebar.button("Book a Barber"):
-            st.subheader("Book a Barber")
-            if len(barbers) == 0:
-                st.write("No barbers available. Please check back later.")
-            else:
-                selected_barber = st.selectbox("Select Barber", [barber['name'] for barber in barbers])
-                for barber in barbers:
-                    if barber['name'] == selected_barber:
-                        st.write(f"Experience: {barber['experience']} years")
-                        st.write(f"Services: {barber['services']}")
-                        st.write(f"Pricing: ${barber['pricing']}")
-                        st.write(f"Availability: {barber['availability']}")
-                        break
-                appointment_date = st.date_input("Select Date", min_value=datetime.now().date())
-                appointment_time = st.time_input("Select Time")
-                confirm = st.button("Confirm Booking")
-                if confirm:
-                    appointment = {
-                        'barber': selected_barber,
-                        'user': username,
-                        'date': appointment_date,
-                        'time': appointment_time,
-                        'amount': barber['pricing']
-                    }
-                    appointments.append(appointment)
-                    st.success(f"Appointment booked with {selected_barber} on {appointment_date} at {appointment_time}")
-                    process_payment(username, barber['pricing'])
+        # Store data for ML model
+        st.session_state.budget_data['data'].append({
+            "income": st.session_state.budget_data['income'],
+            "expenses": total_expenses,
+            "investment": st.session_state.budget_data['remaining_balance'],
+            "savings": st.session_state.budget_data['remaining_balance'] * 0.2  # Example savings
+        })
 
-        # Option for Barbers to view appointments
-        if st.sidebar.button("View Appointments"):
-            st.subheader("My Appointments")
-            for appointment in appointments:
-                if appointment['barber'] == username:
-                    st.write(f"User: {appointment['user']}")
-                    st.write(f"Date: {appointment['date']}")
-                    st.write(f"Time: {appointment['time']}")
-                    st.write("---")
-        
-        # Option to rate barbers
-        if st.sidebar.button("Rate a Barber"):
-            st.subheader("Rate a Barber")
-            rated_barber = st.selectbox("Select Barber to Rate", [barber['name'] for barber in barbers])
-            rating = st.slider("Rate out of 5", 1, 5)
-            review = st.text_area("Leave a review")
-            submit_rating = st.button("Submit Rating")
-            if submit_rating:
-                for barber in barbers:
-                    if barber['name'] == rated_barber:
-                        barber['ratings'].append({'rating': rating, 'review': review})
-                        st.success("Rating submitted successfully!")
+# Investment Suggestions
+elif choice == "Investment Suggestions" and st.session_state.user_logged_in:
+    st.title("Investment Suggestions")
 
-        # Logout option
-        if st.sidebar.button("Logout"):
-            st.session_state['authenticated'] = False
-            st.session_state['username'] = ""
-            st.success("Logged out successfully.")
+    if st.session_state.budget_data['remaining_balance'] > 0:
+        model = train_model(st.session_state.budget_data['data'])
+        prediction = predict_savings(model, st.session_state.budget_data['income'], 
+                                     sum(st.session_state.budget_data['expenses'].values()), 
+                                     st.session_state.budget_data['remaining_balance'])
+        st.write(f"Suggested Investment: {prediction}")
     else:
-        st.warning("Please log in to access the app features.")
+        st.error("No remaining balance to invest.")
 
-if __name__ == '__main__':
-    main()
+# Expense History
+elif choice == "Expense History" and st.session_state.user_logged_in:
+    st.title("Expense History")
+
+    st.write("Your previous expenses:")
+    st.write(st.session_state.budget_data['expenses'])
+
+# Alerts
+elif choice == "Alerts" and st.session_state.user_logged_in:
+    st.title("Upcoming Bill Alerts")
+
+    st.write("You have upcoming bills for the following categories:")
+    for category, amount in st.session_state.budget_data['expenses'].items():
+        if amount > 0:
+            st.write(f"{category}: ${amount}")
+
+# If not logged in, show login prompt on other pages
+if not st.session_state.user_logged_in and choice != "Home":
+    st.warning("Please log in to access this page.")
