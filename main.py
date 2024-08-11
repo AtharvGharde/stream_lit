@@ -9,7 +9,7 @@ if "budget_data" not in st.session_state:
     st.session_state.budget_data = {
         "income": 0,
         "expenses": {},
-        "investment": {},
+        "investment": 0,
         "remaining_balance": 0,
         "data": []
     }
@@ -23,14 +23,18 @@ def login(username, password):
 
 # Machine Learning Model
 def train_model(data):
-    df = pd.DataFrame(data)
-    X = df[["income", "expenses", "investment"]]
-    y = df["savings"]
-    model = LinearRegression().fit(X, y)
-    return model
+    if len(data) > 0:
+        df = pd.DataFrame(data)
+        X = df[["income", "expenses", "investment"]]
+        y = df["savings"]
+        model = LinearRegression().fit(X, y)
+        return model
+    return None
 
 def predict_savings(model, income, expenses, investment):
-    return model.predict([[income, expenses, investment]])[0]
+    if model:
+        return model.predict([[income, expenses, investment]])[0]
+    return 0
 
 # Sidebar for Navigation
 st.sidebar.title("Navigation")
@@ -69,7 +73,7 @@ elif choice == "Budget Calculator" and st.session_state.user_logged_in:
             "income": st.session_state.budget_data['income'],
             "expenses": total_expenses,
             "investment": st.session_state.budget_data['remaining_balance'],
-            "savings": st.session_state.budget_data['remaining_balance'] * 0.2  # Example savings
+            "savings": st.session_state.budget_data['remaining_balance'] * 0.2  # Example savings (adjust logic as needed)
         })
 
 # Investment Suggestions
@@ -78,10 +82,13 @@ elif choice == "Investment Suggestions" and st.session_state.user_logged_in:
 
     if st.session_state.budget_data['remaining_balance'] > 0:
         model = train_model(st.session_state.budget_data['data'])
-        prediction = predict_savings(model, st.session_state.budget_data['income'], 
-                                     sum(st.session_state.budget_data['expenses'].values()), 
-                                     st.session_state.budget_data['remaining_balance'])
-        st.write(f"Suggested Investment: {prediction}")
+        if model:
+            prediction = predict_savings(model, st.session_state.budget_data['income'], 
+                                         sum(st.session_state.budget_data['expenses'].values()), 
+                                         st.session_state.budget_data['remaining_balance'])
+            st.write(f"Suggested Investment: {prediction}")
+        else:
+            st.warning("Not enough data to provide suggestions.")
     else:
         st.error("No remaining balance to invest.")
 
