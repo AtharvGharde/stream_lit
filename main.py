@@ -1,8 +1,14 @@
 import streamlit as st
 import pandas as pd
-from sklearn.linear_model import LinearRegression
 import numpy as np
 import matplotlib.pyplot as plt
+
+# Try to import scikit-learn and handle potential import errors
+try:
+    from sklearn.linear_model import LinearRegression
+except ModuleNotFoundError:
+    st.error("Error: scikit-learn is not installed. Please install it using `pip install scikit-learn`.")
+    st.stop()
 
 # Initialize session state
 if 'user_logged_in' not in st.session_state:
